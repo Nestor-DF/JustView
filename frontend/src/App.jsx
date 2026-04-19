@@ -3,7 +3,7 @@ import DataUploader from './components/DataUploader';
 import ProcessConfigurator from './components/ProcessConfigurator';
 import ChartConfigurator from './components/ChartConfigurator';
 import ChartViewer from './components/ChartViewer';
-import { LayoutDashboard } from 'lucide-react';
+import { Eye } from 'lucide-react';
 
 function App() {
   const [file, setFile] = useState(null);
@@ -41,10 +41,12 @@ function App() {
       setChartConfig({
         dataset_id: data.dataset_id,
         chart_type: 'bar',
-        metric: data.columns.length > 0 ? data.columns[data.columns.length - 1] : '',
-        dimension: data.columns.length > 0 ? data.columns[0] : '',
-        metric_agg: 'sum',
-        limit: 100
+        common: { limit: 100 },
+        specific: {
+          x_axis: data.columns.length > 0 ? data.columns[0] : '',
+          y_axis: data.columns.length > 0 ? data.columns[data.columns.length - 1] : '',
+          aggregation: 'sum'
+        }
       });
       
     } catch (err) {
@@ -67,7 +69,7 @@ function App() {
       {/* Sidebar for Controls */}
       <div className="sidebar">
         <div className="header" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <LayoutDashboard size={28} />
+          <Eye size={28} />
           <h1>JustView</h1>
         </div>
 
@@ -116,7 +118,7 @@ function App() {
         {!datasetMeta ? (
           <div className="chart-container-wrapper" style={{background: 'transparent', border: 'none', boxShadow: 'none'}}>
             <div style={{textAlign: 'center', color: '#888'}}>
-              <LayoutDashboard size={48} style={{opacity: 0.2, marginBottom: '20px'}}/>
+              <Eye size={48} style={{opacity: 0.2, marginBottom: '20px'}}/>
               <h2>Welcome to JustView</h2>
               <p>Upload a CSV or Excel file to get started.</p>
             </div>

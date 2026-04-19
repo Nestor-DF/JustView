@@ -61,14 +61,44 @@ async def upload_file(
         raise HTTPException(status_code=400, detail=str(e))
 
 from pydantic import BaseModel
+from typing import Literal, Union, Any
 
-class ChartRequest(BaseModel):
-    dataset_id: str
-    chart_type: str
-    metric: str
-    dimension: str
-    metric_agg: str = "sum"
+class CommonConfig(BaseModel):
     limit: Optional[int] = 100
+
+class BarSpecific(BaseModel):
+    x_axis: str
+    y_axis: str
+    aggregation: str = "sum"
+
+class PieSpecific(BaseModel):
+    category: str
+    value: str
+    aggregation: str = "sum"
+
+class LineSpecific(BaseModel):
+    x_axis: str
+    y_axis: str
+    aggregation: str = "sum"
+    time_granularity: Optional[str] = "none"
+
+class BaseChartRequest(BaseModel):
+    dataset_id: str
+    common: CommonConfig
+
+class BarRequest(BaseChartRequest):
+    chart_type: Literal["bar"]
+    specific: BarSpecific
+
+class PieRequest(BaseChartRequest):
+    chart_type: Literal["pie"]
+    specific: PieSpecific
+
+class LineRequest(BaseChartRequest):
+    chart_type: Literal["line"]
+    specific: LineSpecific
+
+ChartRequest = Union[BarRequest, PieRequest, LineRequest]
     
 @app.post("/api/chart")
 async def generate_chart(request: ChartRequest):
@@ -81,15 +111,8 @@ async def generate_chart(request: ChartRequest):
     # 3. Strategy: Visualizer
     visualizer = get_visualizer(request.chart_type)
     
-    config = {
-        'metric': request.metric,
-        'dimension': request.dimension,
-        'metric_agg': request.metric_agg,
-        'limit': request.limit
-    }
-    
     try:
-        chart_json = visualizer.generate_chart_json(df, config)
+        chart_json = visualizer.generate_chart_json(df, request.common.model_dump(), request.specific.model_dump())
         return json.loads(chart_json)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Visualizer Error: {str(e)}")
