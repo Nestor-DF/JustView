@@ -8,97 +8,94 @@ class VisualizerStrategy(ABC):
     def generate_chart_json(self, df: pd.DataFrame, common_config: dict, specific_config: dict) -> str:
         pass
 
-def prepare_data(df: pd.DataFrame, group_col: str, val_col: str, agg_func: str, common_config: dict) -> pd.DataFrame:
-    if not group_col:
-        return df
+def prepare_data(df: pd.DataFrame, dimension: str, metric: dict, common_config: dict) -> tuple:
+    if not dimension or dimension not in df.columns:
+        return df, dimension, None
         
-    if val_col and val_col not in df.columns:
-        return df
+    agg_func = metric.get('aggregation', 'sum').lower()
+    col = metric.get('column')
+    
+    if agg_func != 'count' and (not col or col not in df.columns):
+        return df, dimension, None
         
-    # Group by
     try:
         if agg_func == 'count':
-            grouped = df.groupby(group_col).size().reset_index(name='count')
-            val_col = 'count'
-        elif not val_col:
-            # Cannot do sum/mean without val_col
-            return df
+            if not col or col == '*':
+                y_col = 'COUNT(*)'
+                grouped = df.groupby(dimension).size().reset_index(name=y_col)
+            elif col in df.columns:
+                y_col = f'COUNT({col})'
+                grouped = df.groupby(dimension)[col].count().reset_index(name=y_col)
+            else:
+                y_col = 'COUNT(*)'
+                grouped = df.groupby(dimension).size().reset_index(name=y_col)
         else:
-            grouped = df.groupby(group_col)[val_col].agg(agg_func).reset_index()
+            y_col = f'{agg_func.upper()}({col})'
+            grouped = df.groupby(dimension)[col].agg(agg_func).reset_index(name=y_col)
     except Exception:
-        grouped = df.groupby(group_col).size().reset_index(name='count')
-        val_col = 'count'
+        y_col = 'COUNT(*)'
+        grouped = df.groupby(dimension).size().reset_index(name=y_col)
         
-    # Sort and limit
     limit = common_config.get('limit', 100)
     
-    # We sort by value descending by default
-    if val_col in grouped.columns:
-        grouped = grouped.sort_values(by=val_col, ascending=False)
+    if y_col in grouped.columns:
+        grouped = grouped.sort_values(by=y_col, ascending=False)
     if limit:
         grouped = grouped.head(int(limit))
         
-    return grouped
+    return grouped, dimension, y_col
 
 class LineChartStrategy(VisualizerStrategy):
     def generate_chart_json(self, df: pd.DataFrame, common_config: dict, specific_config: dict) -> str:
-        x_axis = specific_config.get('x_axis')
-        y_axis = specific_config.get('y_axis')
-        agg_func = specific_config.get('aggregation', 'sum').lower()
+        dimension = specific_config.get('dimension')
+        metric = specific_config.get('metric', {})
         time_granularity = specific_config.get('time_granularity', 'none')
         
         plot_df = df.copy()
         
-        if time_granularity and time_granularity != 'none' and x_axis in plot_df.columns:
-            # Try to convert to datetime
+        if time_granularity and time_granularity != 'none' and dimension in plot_df.columns:
             try:
-                plot_df[x_axis] = pd.to_datetime(plot_df[x_axis])
+                plot_df[dimension] = pd.to_datetime(plot_df[dimension])
                 if time_granularity == 'day':
-                    plot_df[x_axis] = plot_df[x_axis].dt.to_period('D').dt.to_timestamp()
+                    plot_df[dimension] = plot_df[dimension].dt.to_period('D').dt.to_timestamp()
                 elif time_granularity == 'month':
-                    plot_df[x_axis] = plot_df[x_axis].dt.to_period('M').dt.to_timestamp()
+                    plot_df[dimension] = plot_df[dimension].dt.to_period('M').dt.to_timestamp()
                 elif time_granularity == 'year':
-                    plot_df[x_axis] = plot_df[x_axis].dt.to_period('Y').dt.to_timestamp()
+                    plot_df[dimension] = plot_df[dimension].dt.to_period('Y').dt.to_timestamp()
             except Exception:
-                pass # Fallback if not date
+                pass
                 
-        plot_df = prepare_data(plot_df, x_axis, y_axis, agg_func, common_config)
-        if agg_func == 'count':
-            y_axis = 'count'
+        plot_df, x_col, y_col = prepare_data(plot_df, dimension, metric, common_config)
             
-        # Sort by x_axis for line charts instead of value descending
-        if x_axis in plot_df.columns:
-            plot_df = plot_df.sort_values(by=x_axis, ascending=True)
+        if x_col in plot_df.columns:
+            plot_df = plot_df.sort_values(by=x_col, ascending=True)
             
-        fig = px.line(plot_df, x=x_axis, y=y_axis, title=f"Line Chart: {y_axis} by {x_axis}")
+        if not y_col: return "{}"
+        fig = px.line(plot_df, x=x_col, y=y_col, title=f"Line Chart: {y_col} by {x_col}")
         fig.update_layout(template="plotly_white", margin=dict(l=20, r=20, t=40, b=20))
         return pio.to_json(fig)
 
 class BarChartStrategy(VisualizerStrategy):
     def generate_chart_json(self, df: pd.DataFrame, common_config: dict, specific_config: dict) -> str:
-        x_axis = specific_config.get('x_axis')
-        y_axis = specific_config.get('y_axis')
-        agg_func = specific_config.get('aggregation', 'sum').lower()
+        dimension = specific_config.get('dimension')
+        metric = specific_config.get('metric', {})
         
-        plot_df = prepare_data(df, x_axis, y_axis, agg_func, common_config)
-        if agg_func == 'count':
-            y_axis = 'count'
-            
-        fig = px.bar(plot_df, x=x_axis, y=y_axis, title=f"Bar Chart: {y_axis} by {x_axis}")
+        plot_df, x_col, y_col = prepare_data(df, dimension, metric, common_config)
+        
+        if not y_col: return "{}"
+        fig = px.bar(plot_df, x=x_col, y=y_col, title=f"Bar Chart: {y_col} by {x_col}")
         fig.update_layout(template="plotly_white", margin=dict(l=20, r=20, t=40, b=20))
         return pio.to_json(fig)
 
 class PieChartStrategy(VisualizerStrategy):
     def generate_chart_json(self, df: pd.DataFrame, common_config: dict, specific_config: dict) -> str:
-        category = specific_config.get('category')
-        value = specific_config.get('value')
-        agg_func = specific_config.get('aggregation', 'sum').lower()
+        dimension = specific_config.get('dimension')
+        metric = specific_config.get('metric', {})
         
-        plot_df = prepare_data(df, category, value, agg_func, common_config)
-        if agg_func == 'count':
-            value = 'count'
-            
-        fig = px.pie(plot_df, names=category, values=value, title=f"Pie Chart: {value} by {category}")
+        plot_df, category_col, value_col = prepare_data(df, dimension, metric, common_config)
+        
+        if not value_col: return "{}"
+        fig = px.pie(plot_df, names=category_col, values=value_col, title=f"Pie Chart: {value_col} by {category_col}")
         fig.update_layout(template="plotly_white", margin=dict(l=20, r=20, t=40, b=20))
         return pio.to_json(fig)
 
@@ -107,7 +104,8 @@ def get_visualizer(chart_type: str) -> VisualizerStrategy:
         return LineChartStrategy()
     elif chart_type == 'pie':
         return PieChartStrategy()
-    else:
-        # Default or 'bar'
+    elif chart_type == 'bar':
         return BarChartStrategy()
-
+    else:
+        # Default
+        return BarChartStrategy()

@@ -1,5 +1,74 @@
 import React from 'react';
 
+// --- Shared Atomic Components ---
+function DimensionField({ label = "Dimension", columns, specific, setConfig }) {
+    const handleChange = (e) => {
+        const { value } = e.target;
+        setConfig(prev => ({ ...prev, specific: { ...prev.specific, dimension: value } }));
+    };
+
+    return (
+        <div className="form-group">
+            <label>{label}</label>
+            <select name="dimension" value={specific.dimension || ''} onChange={handleChange}>
+                <option value="">Select an option...</option>
+                {columns.map(col => <option key={col} value={col}>{col}</option>)}
+            </select>
+        </div>
+    );
+}
+
+function MetricField({ label = "Metric", columns, specific, setConfig }) {
+    const metric = specific.metric || { aggregation: 'sum', column: '' };
+
+    const handleAggChange = (e) => {
+        const value = e.target.value;
+        setConfig(prev => {
+            const currentMetric = prev.specific.metric || { column: '' };
+            return {
+                ...prev,
+                specific: {
+                    ...prev.specific,
+                    metric: { ...currentMetric, aggregation: value }
+                }
+            };
+        });
+    };
+
+    const handleColChange = (e) => {
+        const value = e.target.value;
+        setConfig(prev => {
+            const currentMetric = prev.specific.metric || { aggregation: 'sum' };
+            return {
+                ...prev,
+                specific: {
+                    ...prev.specific,
+                    metric: { ...currentMetric, column: value }
+                }
+            };
+        });
+    };
+
+    return (
+        <div className="form-group">
+            <label>{label}</label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+                <select style={{ flex: '1' }} value={metric.aggregation || 'sum'} onChange={handleAggChange}>
+                    <option value="sum">SUM</option>
+                    <option value="mean">AVG</option>
+                    <option value="count">COUNT</option>
+                    <option value="min">MIN</option>
+                    <option value="max">MAX</option>
+                </select>
+                <select style={{ flex: '2' }} value={metric.column || ''} onChange={handleColChange}>
+                    {metric.aggregation === 'count' && <option value="*">* (All Rows)</option>}
+                    {columns.map(col => <option key={col} value={col}>{col}</option>)}
+                </select>
+            </div>
+        </div>
+    );
+}
+
 function CommonConfigurator({ config, setConfig }) {
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -20,9 +89,18 @@ function CommonConfigurator({ config, setConfig }) {
     );
 }
 
-function BarLineConfigurator({ columns, config, setConfig }) {
-    const specific = config.specific || {};
+// --- Specific Chart Configurators ---
 
+function BarConfigurator({ columns, config, setConfig }) {
+    return (
+        <>
+            <DimensionField label="X-Axis (Dimension)" columns={columns} specific={config.specific} setConfig={setConfig} />
+            <MetricField label="Y-Axis (Metric)" columns={columns} specific={config.specific} setConfig={setConfig} />
+        </>
+    );
+}
+
+function LineConfigurator({ columns, config, setConfig }) {
     const handleChange = (e) => {
         const { name, value } = e.target;
         setConfig(prev => ({ ...prev, specific: { ...prev.specific, [name]: value } }));
@@ -30,80 +108,36 @@ function BarLineConfigurator({ columns, config, setConfig }) {
 
     return (
         <>
+            <DimensionField label="X-Axis (Dimension)" columns={columns} specific={config.specific} setConfig={setConfig} />
+            <MetricField label="Y-Axis (Metric)" columns={columns} specific={config.specific} setConfig={setConfig} />
             <div className="form-group">
-                <label>X-Axis (Dimension)</label>
-                <select name="x_axis" value={specific.x_axis || ''} onChange={handleChange}>
-                    {columns.map(col => <option key={col} value={col}>{col}</option>)}
+                <label>Time Granularity</label>
+                <select name="time_granularity" value={config.specific?.time_granularity || 'none'} onChange={handleChange}>
+                    <option value="none">None (Raw/Default)</option>
+                    <option value="day">Daily</option>
+                    <option value="month">Monthly</option>
+                    <option value="year">Yearly</option>
                 </select>
             </div>
-            <div className="form-group">
-                <label>Y-Axis (Metric)</label>
-                <select name="y_axis" value={specific.y_axis || ''} onChange={handleChange} disabled={specific.aggregation === 'count'}>
-                    {columns.map(col => <option key={col} value={col}>{col}</option>)}
-                </select>
-                {specific.aggregation === 'count' && <div style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>Ignorado al contar.</div>}
-            </div>
-            <div className="form-group">
-                <label>Aggregation</label>
-                <select name="aggregation" value={specific.aggregation || 'sum'} onChange={handleChange}>
-                    <option value="sum">Sum</option>
-                    <option value="mean">Average</option>
-                    <option value="count">Count</option>
-                    <option value="min">Min</option>
-                    <option value="max">Max</option>
-                </select>
-            </div>
-            {config.chart_type === 'line' && (
-                <div className="form-group">
-                    <label>Time Granularity</label>
-                    <select name="time_granularity" value={specific.time_granularity || 'none'} onChange={handleChange}>
-                        <option value="none">None (Raw/Default)</option>
-                        <option value="day">Daily</option>
-                        <option value="month">Monthly</option>
-                        <option value="year">Yearly</option>
-                    </select>
-                </div>
-            )}
         </>
     );
 }
 
 function PieConfigurator({ columns, config, setConfig }) {
-    const specific = config.specific || {};
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setConfig(prev => ({ ...prev, specific: { ...prev.specific, [name]: value } }));
-    };
-
     return (
         <>
-            <div className="form-group">
-                <label>Category (Wedges)</label>
-                <select name="category" value={specific.category || ''} onChange={handleChange}>
-                    {columns.map(col => <option key={col} value={col}>{col}</option>)}
-                </select>
-            </div>
-            <div className="form-group">
-                <label>Value (Size)</label>
-                <select name="value" value={specific.value || ''} onChange={handleChange} disabled={specific.aggregation === 'count'}>
-                    {columns.map(col => <option key={col} value={col}>{col}</option>)}
-                </select>
-                {specific.aggregation === 'count' && <div style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>Ignorado al contar.</div>}
-            </div>
-            <div className="form-group">
-                <label>Aggregation</label>
-                <select name="aggregation" value={specific.aggregation || 'sum'} onChange={handleChange}>
-                    <option value="sum">Sum</option>
-                    <option value="mean">Average</option>
-                    <option value="count">Count</option>
-                    <option value="min">Min</option>
-                    <option value="max">Max</option>
-                </select>
-            </div>
+            <DimensionField label="Category (Dimension)" columns={columns} specific={config.specific} setConfig={setConfig} />
+            <MetricField label="Value (Metric)" columns={columns} specific={config.specific} setConfig={setConfig} />
         </>
     );
 }
+
+// --- Dynamic Registry ---
+const CHART_REGISTRY = {
+    bar: { name: 'Bar Chart', component: BarConfigurator },
+    line: { name: 'Line Chart', component: LineConfigurator },
+    pie: { name: 'Pie Chart', component: PieConfigurator },
+};
 
 export default function ChartConfigurator({ columns, config, setConfig }) {
     const handleTypeChange = (e) => {
@@ -113,12 +147,13 @@ export default function ChartConfigurator({ columns, config, setConfig }) {
         const defaultCol1 = columns.length > 0 ? columns[0] : '';
         const defaultCol2 = columns.length > 0 ? columns[columns.length - 1] : '';
 
-        let newSpecific = {};
-        if (newType === 'bar' || newType === 'line') {
-            newSpecific = { x_axis: defaultCol1, y_axis: defaultCol2, aggregation: 'sum' };
-            if (newType === 'line') newSpecific.time_granularity = 'none';
-        } else if (newType === 'pie') {
-            newSpecific = { category: defaultCol1, value: defaultCol2, aggregation: 'sum' };
+        let newSpecific = {
+            dimension: defaultCol1,
+            metric: { aggregation: 'sum', column: defaultCol2 }
+        };
+        
+        if (newType === 'line') {
+            newSpecific.time_granularity = 'none';
         }
 
         setConfig(prev => ({
@@ -128,6 +163,8 @@ export default function ChartConfigurator({ columns, config, setConfig }) {
         }));
     };
 
+    const ActiveConfigurator = CHART_REGISTRY[config.chart_type]?.component;
+
     return (
         <div className="card">
             <h2 style={{ fontSize: '16px', marginBottom: '15px' }}>Chart Configuration</h2>
@@ -135,20 +172,19 @@ export default function ChartConfigurator({ columns, config, setConfig }) {
             <div className="form-group">
                 <label>Visualization Type</label>
                 <select name="chart_type" value={config.chart_type} onChange={handleTypeChange}>
-                    <option value="bar">Bar Chart</option>
-                    <option value="line">Line Chart</option>
-                    <option value="pie">Pie Chart</option>
+                    {Object.entries(CHART_REGISTRY).map(([key, value]) => (
+                        <option key={key} value={key}>{value.name}</option>
+                    ))}
                 </select>
             </div>
 
             <hr style={{ margin: '15px 0', border: 'none', borderTop: '1px solid #eee' }} />
 
             <h3 style={{ fontSize: '13px', marginBottom: '10px', color: '#666' }}>Specific Configuration</h3>
-            {(config.chart_type === 'bar' || config.chart_type === 'line') && (
-                <BarLineConfigurator columns={columns} config={config} setConfig={setConfig} />
-            )}
-            {config.chart_type === 'pie' && (
-                <PieConfigurator columns={columns} config={config} setConfig={setConfig} />
+            {ActiveConfigurator ? (
+                <ActiveConfigurator columns={columns} config={config} setConfig={setConfig} />
+            ) : (
+                <div style={{ color: '#888', fontSize: '12px' }}>Select a valid chart type.</div>
             )}
 
             <hr style={{ margin: '15px 0', border: 'none', borderTop: '1px solid #eee' }} />

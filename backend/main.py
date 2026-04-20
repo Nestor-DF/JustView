@@ -66,20 +66,21 @@ from typing import Literal, Union, Any
 class CommonConfig(BaseModel):
     limit: Optional[int] = 100
 
+class MetricConfig(BaseModel):
+    aggregation: Literal["sum", "mean", "count", "min", "max"]
+    column: Optional[str] = None
+
 class BarSpecific(BaseModel):
-    x_axis: str
-    y_axis: str
-    aggregation: str = "sum"
+    dimension: str
+    metric: MetricConfig
 
 class PieSpecific(BaseModel):
-    category: str
-    value: str
-    aggregation: str = "sum"
+    dimension: str
+    metric: MetricConfig
 
 class LineSpecific(BaseModel):
-    x_axis: str
-    y_axis: str
-    aggregation: str = "sum"
+    dimension: str
+    metric: MetricConfig
     time_granularity: Optional[str] = "none"
 
 class BaseChartRequest(BaseModel):
