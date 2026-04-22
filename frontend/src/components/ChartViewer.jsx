@@ -31,7 +31,11 @@ export default function ChartViewer({ config }) {
                 const data = await response.json();
 
                 if (!response.ok) {
-                    throw new Error(data.detail || 'Failed to fetch chart data');
+                    if (response.status === 422) {
+                        throw new Error('Please select the required configuration (dimension, metric) to generate the chart.');
+                    }
+                    const errorMsg = typeof data.detail === 'string' ? data.detail : 'Failed to generate chart data.';
+                    throw new Error(errorMsg);
                 }
 
                 if (isMounted) {
@@ -53,8 +57,11 @@ export default function ChartViewer({ config }) {
 
     if (error) {
         return (
-            <div className="chart-container-wrapper">
-                <div style={{ color: 'red' }}>Error rendering chart: {error}</div>
+            <div className="chart-container-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                <div style={{ color: '#888', textAlign: 'center', padding: '2rem' }}>
+                    <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem', opacity: 0.5 }}>📊</div>
+                    <div style={{ fontSize: '0.95rem' }}>{error}</div>
+                </div>
             </div>
         );
     }
