@@ -4,12 +4,33 @@ JustView is a minimalist data visualization and processing web application inspi
 
 ## Prerequisites
 
-- **Node.js** (v18+ recommended)
-- **Python** (3.9+ recommended)
+- **Docker** and **Docker Compose** (for easy deployment)
+- **Node.js** (v18+ recommended, for local development)
+- **Python** (3.9+ recommended, for local development)
 
 ---
 
-## 1. Setting up the Backend (FastAPI)
+## 1. Running with Docker (Recommended)
+
+The easiest way to get the application up and running is using Docker Compose.
+
+1. Ensure Docker is running.
+2. Open a terminal in the root directory of the project.
+3. Run the following command:
+   ```bash
+   docker compose up
+   ```
+   *(Use `docker compose up -d` to run in the background)*
+
+4. The application will be available at:
+   - **Frontend**: [http://localhost:8080](http://localhost:8080)
+   - **Backend API**: [http://localhost:8000](http://localhost:8000)
+
+---
+
+## 2. Setting up Locally (Manual)
+
+### Backend (FastAPI)
 
 The backend handles file uploads, data cleaning strategies, and generation of chart configurations.
 
@@ -46,7 +67,7 @@ The backend handles file uploads, data cleaning strategies, and generation of ch
 
 ---
 
-## 2. Setting up the Frontend (Vite + React)
+### Frontend (Vite + React)
 
 The frontend handles the user interface, dataset configurations, and chart rendering via `react-plotly.js`.
 
@@ -64,9 +85,9 @@ The frontend handles the user interface, dataset configurations, and chart rende
    ```bash
    npm run dev
    ```
-   > The app should now be accessible at `http://localhost:5173`. 
+   > The app should now be accessible at `http://localhost:8080`. 
 
 ---
 
 ## Running the App
-Once both servers are running, just open your browser at [http://localhost:5173](http://localhost:5173). You can then upload a dataset (e.g. `test_data.csv`) and start generating dynamic charts.
+Once the servers are running (either via Docker or locally), just open your browser at [http://localhost:8080](http://localhost:8080). You can then upload a dataset (e.g. `test_data.csv`) and start generating dynamic charts.
