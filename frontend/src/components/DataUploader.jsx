@@ -17,7 +17,7 @@ export default function DataUploader({ file, setFile }) {
 
     return (
         <div className="card">
-            <h2 style={{ fontSize: '16px', marginBottom: '15px' }}>Data Source</h2>
+            <h2 style={{ fontSize: '16px', marginBottom: '15px' }}>Upload data source</h2>
             <div
                 className={`dropzone ${file ? 'active' : ''}`}
                 onDragOver={(e) => e.preventDefault()}
