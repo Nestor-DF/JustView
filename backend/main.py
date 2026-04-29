@@ -83,6 +83,13 @@ class LineSpecific(BaseModel):
     metric: MetricConfig
     time_granularity: Optional[str] = "none"
 
+class ScatterSpecific(BaseModel):
+    x_column: str
+    y_column: str
+
+class HistogramSpecific(BaseModel):
+    column: str
+
 class BaseChartRequest(BaseModel):
     dataset_id: str
     common: CommonConfig
@@ -99,7 +106,15 @@ class LineRequest(BaseChartRequest):
     chart_type: Literal["line"]
     specific: LineSpecific
 
-ChartRequest = Union[BarRequest, PieRequest, LineRequest]
+class ScatterRequest(BaseChartRequest):
+    chart_type: Literal["scatter"]
+    specific: ScatterSpecific
+
+class HistogramRequest(BaseChartRequest):
+    chart_type: Literal["histogram"]
+    specific: HistogramSpecific
+
+ChartRequest = Union[BarRequest, PieRequest, LineRequest, ScatterRequest, HistogramRequest]
     
 @app.post("/api/chart")
 async def generate_chart(request: ChartRequest):

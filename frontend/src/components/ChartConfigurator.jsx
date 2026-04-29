@@ -89,6 +89,23 @@ function CommonConfigurator({ config, setConfig }) {
     );
 }
 
+function ColumnField({ label, name, columns, specific, setConfig }) {
+    const handleChange = (e) => {
+        const { value } = e.target;
+        setConfig(prev => ({ ...prev, specific: { ...prev.specific, [name]: value } }));
+    };
+
+    return (
+        <div className="form-group">
+            <label>{label}</label>
+            <select name={name} value={specific[name] || ''} onChange={handleChange}>
+                <option value="">Select an option...</option>
+                {columns.map(col => <option key={col} value={col}>{col}</option>)}
+            </select>
+        </div>
+    );
+}
+
 // --- Specific Chart Configurators ---
 
 function BarConfigurator({ columns, config, setConfig }) {
@@ -132,11 +149,30 @@ function PieConfigurator({ columns, config, setConfig }) {
     );
 }
 
+function ScatterConfigurator({ columns, config, setConfig }) {
+    return (
+        <>
+            <ColumnField label="X-Axis Column" name="x_column" columns={columns} specific={config.specific} setConfig={setConfig} />
+            <ColumnField label="Y-Axis Column" name="y_column" columns={columns} specific={config.specific} setConfig={setConfig} />
+        </>
+    );
+}
+
+function HistogramConfigurator({ columns, config, setConfig }) {
+    return (
+        <>
+            <ColumnField label="Column to Distribute" name="column" columns={columns} specific={config.specific} setConfig={setConfig} />
+        </>
+    );
+}
+
 // --- Dynamic Registry ---
 const CHART_REGISTRY = {
     bar: { name: 'Bar Chart', component: BarConfigurator },
     line: { name: 'Line Chart', component: LineConfigurator },
     pie: { name: 'Pie Chart', component: PieConfigurator },
+    scatter: { name: 'Scatter Plot', component: ScatterConfigurator },
+    histogram: { name: 'Histogram', component: HistogramConfigurator },
 };
 
 export default function ChartConfigurator({ columns, config, setConfig }) {
@@ -147,13 +183,20 @@ export default function ChartConfigurator({ columns, config, setConfig }) {
         const defaultCol1 = columns.length > 0 ? columns[0] : '';
         const defaultCol2 = columns.length > 0 ? columns[columns.length - 1] : '';
 
-        let newSpecific = {
-            dimension: defaultCol1,
-            metric: { aggregation: 'sum', column: defaultCol2 }
-        };
-        
-        if (newType === 'line') {
-            newSpecific.time_granularity = 'none';
+        let newSpecific = {};
+
+        if (newType === 'scatter') {
+            newSpecific = { x_column: defaultCol1, y_column: defaultCol2 };
+        } else if (newType === 'histogram') {
+            newSpecific = { column: defaultCol1 };
+        } else {
+            newSpecific = {
+                dimension: defaultCol1,
+                metric: { aggregation: 'sum', column: defaultCol2 }
+            };
+            if (newType === 'line') {
+                newSpecific.time_granularity = 'none';
+            }
         }
 
         setConfig(prev => ({

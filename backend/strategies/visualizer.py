@@ -99,6 +99,33 @@ class PieChartStrategy(VisualizerStrategy):
         fig.update_layout(template="plotly_white", margin=dict(l=20, r=20, t=40, b=20))
         return pio.to_json(fig)
 
+class ScatterChartStrategy(VisualizerStrategy):
+    def generate_chart_json(self, df: pd.DataFrame, common_config: dict, specific_config: dict) -> str:
+        x_col = specific_config.get('x_column')
+        y_col = specific_config.get('y_column')
+        limit = common_config.get('limit', 100)
+        
+        if not x_col or not y_col or x_col not in df.columns or y_col not in df.columns:
+            return "{}"
+            
+        plot_df = df.head(int(limit)) if limit else df
+        fig = px.scatter(plot_df, x=x_col, y=y_col, title=f"Scatter Plot: {y_col} vs {x_col}")
+        fig.update_layout(template="plotly_white", margin=dict(l=20, r=20, t=40, b=20))
+        return pio.to_json(fig)
+
+class HistogramStrategy(VisualizerStrategy):
+    def generate_chart_json(self, df: pd.DataFrame, common_config: dict, specific_config: dict) -> str:
+        col = specific_config.get('column')
+        limit = common_config.get('limit', 100)
+        
+        if not col or col not in df.columns:
+            return "{}"
+            
+        plot_df = df.head(int(limit)) if limit else df
+        fig = px.histogram(plot_df, x=col, title=f"Histogram: {col}")
+        fig.update_layout(template="plotly_white", margin=dict(l=20, r=20, t=40, b=20))
+        return pio.to_json(fig)
+
 def get_visualizer(chart_type: str) -> VisualizerStrategy:
     if chart_type == 'line':
         return LineChartStrategy()
@@ -106,6 +133,10 @@ def get_visualizer(chart_type: str) -> VisualizerStrategy:
         return PieChartStrategy()
     elif chart_type == 'bar':
         return BarChartStrategy()
+    elif chart_type == 'scatter':
+        return ScatterChartStrategy()
+    elif chart_type == 'histogram':
+        return HistogramStrategy()
     else:
         # Default
         return BarChartStrategy()

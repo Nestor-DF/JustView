@@ -123,16 +123,30 @@ function App() {
         }));
     };
 
-    const handleReset = () => {
-        setFile(null);
-        setProcessOptions([]);
-        setDatasets([]);
-        setActiveDatasetId(null);
-        setExpandedDatasetId(null);
-        setCharts([]);
-        setActiveChartId(null);
-        setMaximizedChartId(null);
-        setError('');
+    const handleRemoveDataset = (id, e) => {
+        e.stopPropagation();
+        
+        setDatasets(prev => {
+            const newDatasets = prev.filter(d => d.dataset_id !== id);
+            if (activeDatasetId === id) {
+                setActiveDatasetId(newDatasets.length > 0 ? newDatasets[newDatasets.length - 1].dataset_id : null);
+            }
+            if (expandedDatasetId === id) {
+                setExpandedDatasetId(null);
+            }
+            return newDatasets;
+        });
+
+        setCharts(prev => {
+            const newCharts = prev.filter(c => c.config.dataset_id !== id);
+            if (activeChartId && !newCharts.find(c => c.id === activeChartId)) {
+                setActiveChartId(newCharts.length > 0 ? newCharts[newCharts.length - 1].id : null);
+            }
+            if (maximizedChartId && !newCharts.find(c => c.id === maximizedChartId)) {
+                setMaximizedChartId(null);
+            }
+            return newCharts;
+        });
     };
 
     const activeChart = charts.find(c => c.id === activeChartId);
@@ -168,9 +182,6 @@ function App() {
                         <div className="card" style={{ marginBottom: '15px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                                 <h3 style={{ fontSize: '14px' }}>Data Sources ({datasets.length})</h3>
-                                <button className="secondary" onClick={handleReset} style={{ fontSize: '11px', padding: '4px 8px' }}>
-                                    Clear All
-                                </button>
                             </div>
 
                             <ul className="chart-list">
@@ -189,12 +200,20 @@ function App() {
                                                 <FileSpreadsheet size={14} style={{ marginRight: '6px', verticalAlign: 'middle', opacity: 0.8 }} />
                                                 {dataset.filename}
                                             </span>
-                                            <Info
-                                                size={15}
-                                                className="action-icon"
-                                                onClick={(e) => { e.stopPropagation(); setExpandedDatasetId(prev => prev === dataset.dataset_id ? null : dataset.dataset_id); }}
-                                                title="View Columns"
-                                            />
+                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                <Info
+                                                    size={15}
+                                                    className="action-icon"
+                                                    onClick={(e) => { e.stopPropagation(); setExpandedDatasetId(prev => prev === dataset.dataset_id ? null : dataset.dataset_id); }}
+                                                    title="View Columns"
+                                                />
+                                                <Trash2
+                                                    size={15}
+                                                    className="delete-icon"
+                                                    onClick={(e) => handleRemoveDataset(dataset.dataset_id, e)}
+                                                    title="Remove Data Source"
+                                                />
+                                            </div>
                                         </div>
                                         {expandedDatasetId === dataset.dataset_id && (
                                             <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(128,128,128,0.2)', width: '100%', fontSize: '11px', color: dataset.dataset_id === activeDatasetId ? '#ddd' : '#666', cursor: 'default' }} onClick={e => e.stopPropagation()}>
