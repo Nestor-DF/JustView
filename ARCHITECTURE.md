@@ -1,31 +1,58 @@
-# Documentación Técnica de JustView
+# JustView - Reporte de Arquitectura y Herramienta
 
-## Tecnologías Principales
+## 1. Descripción de la Herramienta
+JustView es una aplicación web minimalista y dinámica diseñada para la carga, procesamiento y visualización de datos de manera interactiva. Permite a los usuarios importar múltiples conjuntos de datos (datasets) en formato CSV o Excel, aplicar técnicas de limpieza de datos en el proceso (como manejo de valores nulos, duplicados y valores atípicos), y crear configuraciones de gráficos interactivos (Barras, Líneas, Pastel, Dispersión e Histogramas). Su interfaz de usuario actúa como un tablero (dashboard) que permite analizar la información proveniente de múltiples fuentes y configurar diferentes tipos de visualizaciones simultáneamente.
 
-JustView está construido bajo una arquitectura cliente-servidor, que distribuye responsabilidades entre un Frontend reactivo y un Backend capacitado para el procesamiento de datos científicos.
-
-### Frontend
-- **React (con Vite):** Provee una interfaz de usuario modularizada y rápida, mejorada gracias a la compilación instantánea de Vite.
-- **react-plotly.js:** Librería de renderizado de gráficos altamente dinámica y capaz de recibir especificaciones JSON en crudo desde el backend.
-- **lucide-react:** Iconografía vectorial minimalista (por ejemplo, el ícono del Ojo de la aplicación).
+## 2. Tecnologías Empleadas
 
 ### Backend
-- **Python (3.9+):** Lenguaje núcleo para todas las operaciones en el servidor.
-- **FastAPI:** Framework moderno de alto rendimiento que sirve los endpoints (`/api/upload` y `/api/chart`) e inyecta validación estricta utilizando esquemas de `Pydantic`.
-- **Pandas:** El motor de carga (letras de CSV y Excel), tratamiento y limpieza de registros, agrupaciones lógicas y matemáticas del dataset.
-- **Plotly (Express & IO):** Generador de las configuraciones y layout en formato JSON para que el frontend pueda pintar los gráficos (ej. `px.bar`, `px.line`).
+* **Lenguaje:** Python 3
+* **Framework Web:** FastAPI (proporciona una API REST rápida, asíncrona y autodescriptiva).
+* **Servidor ASGI:** Uvicorn.
+* **Procesamiento de Datos:** Pandas (utilizado extensivamente para lectura, limpieza y transformación de los DataFrames).
+* **Visualización (Generación):** Plotly Express / Plotly.io (empleado para agrupar los datos y generar las definiciones JSON interactivas de los gráficos).
+* **Validación de Datos:** Pydantic (para validación estricta y control de esquemas fuertemente tipados de cada configuración gráfica según su tipo).
+
+### Frontend
+* **Core Web:** React 19 (Componentes funcionales, Hooks).
+* **Build Tool:** Vite (empaquetado optimizado y desarrollo ultrarrápido).
+* **Renderizado de Gráficos:** Plotly.js (vía `react-plotly.js`), encargado de interpretar el JSON del backend y dibujar canvas enriquecidos e interactivos.
+* **Estilos:** Vanilla CSS (`index.css`), adoptando un enfoque de diseño monocromático, minimalista y responsivo (Flexbox/Grid).
+* **Iconografía:** Lucide-React.
+
+### Infraestructura
+* **Contenerización:** Docker y Docker Compose para facilitar la distribución del entorno, aislando el backend (en el puerto 8000) y el frontend (en el puerto 5173).
+
+## 3. Arquitectura del Sistema
+El sistema adopta una arquitectura **Cliente-Servidor** clásica, dividida en dos capas lógicas principales conectadas por HTTP/REST:
+
+1. **Frontend (SPA - Single Page Application):** Maneja el estado complejo en el lado del cliente (como múltiples datasets activos, gráficos asociados y vistas). Interactúa con el backend consumiendo endpoints JSON. Al usar React, la interfaz reacciona instantáneamente a cambios en las variables de configuración.
+2. **Backend (API REST Stateless / Memoria Efímera):** Por diseño simple, expone rutas POST para procesar archivos y solicitar gráficos. Utiliza un almacén global en memoria (`DATASETS_STORE`) para mantener los DataFrames vivos mientras dure el ciclo de ejecución del servidor usando identificadores únicos (UUIDs).
+
+### Patrones de Diseño (Backend)
+El backend está estructurado en base a un alto grado de modularización, utilizando primordialmente el **Patrón Strategy (Estrategia)**. Esta arquitectura hace que la plataforma sea de código limpio y altamente extensible (Open/Closed Principle). Existen tres familias de estrategias principales:
+
+* **Estrategias de Lectura (`DataReaderStrategy`):** Se delega la responsabilidad de lectura de los bytes binarios y su conversión a DataFrame según la extensión (`CSVReaderStrategy`, `ExcelReaderStrategy`).
+* **Estrategias de Procesamiento (`DataProcessorStrategy`):** Diferentes métodos de limpieza y tratamiento son encapsulados en sus propias clases, que luego son iteradas por un `ProcessorContext` (`NullHandlerStrategy`, `DuplicateHandlerStrategy`, `OutlierHandlerStrategy`).
+* **Estrategias de Visualización (`VisualizerStrategy`):** Separa la lógica de preparación, validación, agrupación y visualización final para cada familia de gráficos (`BarChartStrategy`, `LineChartStrategy`, `PieChartStrategy`, etc.).
 
 ---
 
-## Implementación de Clases: Patrón Strategy
+## 4. Diagrama de Clases
 
-El diseño del backend gira alrededor del **Patrón Strategy (Estrategia)**, el cual permite definir familias de algoritmos y hacerlos intercambiables dinámicamente dependiendo del archivo o la solicitud del usuario (sin usar cientos de condicionales `if/else`). 
-
-Este patrón se aplica en tres capas principales: **Lectura, Procesamiento y Visualización.**
+A continuación se presenta el diagrama de clases de la aplicación enfocado principalmente en la lógica de las estrategias en el Backend. Este bloque de código está en formato **Mermaid** y será renderizado automáticamente por visores Markdown modernos o pegándolo en el Mermaid Live Editor:
 
 ```mermaid
 classDiagram
-    %% Capa de Lectura
+
+    %% Controladores Principales
+    class FastAPIApp {
+        +DATASETS_STORE: dict
+        +upload_file(file, process_options)
+        +generate_chart(request)
+    }
+
+    %% Estrategias de Lectura de Archivos
     class DataReaderStrategy {
         <<interface>>
         +read(file_content, filename) DataFrame
@@ -37,14 +64,12 @@ classDiagram
         +read(file_content, filename) DataFrame
     }
     class ReaderContext {
-        -strategy DataReaderStrategy
+        -_strategy: DataReaderStrategy
+        +set_strategy(strategy)
         +execute_read(file_content, filename) DataFrame
     }
-    DataReaderStrategy <|-- CSVReaderStrategy
-    DataReaderStrategy <|-- ExcelReaderStrategy
-    ReaderContext o-- DataReaderStrategy
 
-    %% Capa de Procesamiento
+    %% Estrategias de Procesamiento de Datos
     class DataProcessorStrategy {
         <<interface>>
         +process(df, options) DataFrame
@@ -59,60 +84,49 @@ classDiagram
         +process(df, options) DataFrame
     }
     class ProcessorContext {
-        -strategies List~DataProcessorStrategy~
+        -_strategies: List~DataProcessorStrategy~
         +add_strategy(strategy)
         +execute_processing(df, options) DataFrame
     }
-    DataProcessorStrategy <|-- NullHandlerStrategy
-    DataProcessorStrategy <|-- DuplicateHandlerStrategy
-    DataProcessorStrategy <|-- OutlierHandlerStrategy
-    ProcessorContext o-- DataProcessorStrategy
 
-    %% Capa de Visualización
+    %% Estrategias de Visualización de Gráficos
     class VisualizerStrategy {
         <<interface>>
-        +generate_chart_json(df, common_config, specific_config) str
+        +generate_chart_json(df, common_config, specific_config) String
     }
     class BarChartStrategy {
-        +generate_chart_json(df, common_config, specific_config) str
+        +generate_chart_json(df, common_config, specific_config) String
     }
     class LineChartStrategy {
-        +generate_chart_json(df, common_config, specific_config) str
+        +generate_chart_json(df, common_config, specific_config) String
     }
     class PieChartStrategy {
-        +generate_chart_json(df, common_config, specific_config) str
+        +generate_chart_json(df, common_config, specific_config) String
     }
-    VisualizerStrategy <|-- BarChartStrategy
-    VisualizerStrategy <|-- LineChartStrategy
-    VisualizerStrategy <|-- PieChartStrategy
+    class ScatterChartStrategy {
+        +generate_chart_json(df, common_config, specific_config) String
+    }
+    class HistogramStrategy {
+        +generate_chart_json(df, common_config, specific_config) String
+    }
+
+    %% Relaciones
+    DataReaderStrategy <|.. CSVReaderStrategy
+    DataReaderStrategy <|.. ExcelReaderStrategy
+    ReaderContext o-- DataReaderStrategy
+
+    DataProcessorStrategy <|.. NullHandlerStrategy
+    DataProcessorStrategy <|.. DuplicateHandlerStrategy
+    DataProcessorStrategy <|.. OutlierHandlerStrategy
+    ProcessorContext o-- DataProcessorStrategy
+
+    VisualizerStrategy <|.. BarChartStrategy
+    VisualizerStrategy <|.. LineChartStrategy
+    VisualizerStrategy <|.. PieChartStrategy
+    VisualizerStrategy <|.. ScatterChartStrategy
+    VisualizerStrategy <|.. HistogramStrategy
+    
+    FastAPIApp --> ReaderContext : Utiliza
+    FastAPIApp --> ProcessorContext : Utiliza
+    FastAPIApp --> VisualizerStrategy : Obtiene a través de Factory
 ```
-
-### Explicación de cada capa:
-1. **Lector (Reader):** El backend inspecciona la extensión del archivo (`.csv` o `.xlsx`) e inyecta la estrategia de lectura apropiada al contexto (`ReaderContext`), el cual devuelve el `DataFrame` base.
-2. **Procesador (Processor):** Varias estrategias de limpieza de datos pueden encadenarse. Dependiendo de los checkbox que seleccione el usuario en el frontend (tratamiento de nulos, eliminación de duplicados, etc.), el contexto (`ProcessorContext`) aplica el método `process()` secuencialmente sobre el DataFrame mutándolo hacia un estado más íntegro.
-3. **Visualizador (Visualizer):** Una fábrica inyecta la estrategia correcta según el tipo de gráfico (circular, líneas, barras). Cada estrategia sabe cómo formatear semánticamente los ejes (ej. agrupando y parseando la `time_granularity` exclusivamente en las líneas), llamando al motor *Plotly Express* y finalizando con una huella JSON lista para renderizar.
-
----
-
-## Flujo Principal de la Aplicación
-
-El ciclo de vida general en la interacción del usuario se distribuye en las siguientes fases lógicas:
-
-### Fase 1: Ingestión y Limpieza (Upload)
-1. El usuario selecciona un fichero en la web y marca métodos de limpieza.
-2. La UI emite un `POST` Multipart hacia `/api/upload`.
-3. El backend atrapa el binario y emplea un `DataReaderStrategy` para inflarlo como DataFrame en la memoria (Pandas).
-4. El backend aplica los `DataProcessorStrategy` solicitados encadenadamente.
-5. El backend almacena el resultado temporalmente en la memoria global asociado a un `dataset_id` temporal, y devuelve al frontend la metadata (nombre de columnas, número de filas).
-
-### Fase 2: Configuración (UI State)
-1. El frontend despliega la barra lateral (`ChartConfigurator.jsx`). 
-2. Debido al rediseño semántico, al seleccionar un tipo de gráfico, un subcomponente reacciona con propiedades estrictas (ej. Eje X y Y para barras, o Tamaño y Categoría para el gráfico circular).
-3. Cualquier incompatibilidad, como seleccionar *Count* de total, deshabilita el ingreso del campo Y para mejorar la usabilidad.
-
-### Fase 3: Renderizado y Generación (Charting)
-1. El componente `ChartViewer.jsx` vigila los cambios de configuración y efectúa un *debounce* optimizado (para no saturar el tráfico) emitiendo un requerimiento JSON a `/api/chart`.
-2. Una estructura severa con ***discriminated unions* en FastAPI (Pydantic)** aprueba el JSON, desglosando la propiedad `common_config` (limitadores) y `specific_config` asegurando que existan las llaves obligatorias.
-3. El endpoint obtiene el DataFrame en la memoria con su ID y lo manda a la Estrategia de Visualización elegida.
-4. La Estrategia agranda, recorta o formatea fechas según su responsabilidad semántica y escupe el *layout JSON de Plotly*.
-5. El frontend atrapa la salida JSON e inicia `react-plotly.js` dentro del `<Plot />`, resultando en una gráfica dinámica a los ojos del del usuario.
