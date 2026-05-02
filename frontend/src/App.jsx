@@ -47,7 +47,7 @@ function App() {
         formData.append('process_options', JSON.stringify(processOptions));
 
         try {
-            const response = await fetch('http://localhost:8000/api/upload', {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
                 method: 'POST',
                 body: formData,
             });

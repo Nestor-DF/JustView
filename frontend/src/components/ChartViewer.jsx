@@ -23,7 +23,7 @@ export default function ChartViewer({ config }) {
             setLoading(true);
             setError('');
             try {
-                const response = await fetch('http://localhost:8000/api/chart', {
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/chart`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(config)
