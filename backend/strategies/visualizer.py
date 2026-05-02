@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import plotly.io as pio
+import numpy as np
 
 class VisualizerStrategy(ABC):
     @abstractmethod
@@ -126,6 +128,144 @@ class HistogramStrategy(VisualizerStrategy):
         fig.update_layout(template="plotly_white", margin=dict(l=20, r=20, t=40, b=20))
         return pio.to_json(fig)
 
+class DensityChartStrategy(VisualizerStrategy):
+    def generate_chart_json(self, df: pd.DataFrame, common_config: dict, specific_config: dict) -> str:
+        col = specific_config.get('column')
+        group_by = specific_config.get('group_by')
+        limit = common_config.get('limit', 100)
+        
+        if not col or col not in df.columns:
+            return "{}"
+        
+        plot_df = df.head(int(limit)) if limit else df
+        # Ensure column is numeric
+        plot_df = plot_df.copy()
+        plot_df[col] = pd.to_numeric(plot_df[col], errors='coerce')
+        plot_df = plot_df.dropna(subset=[col])
+        
+        if len(plot_df) == 0:
+            return "{}"
+        
+        fig = go.Figure()
+        
+        if group_by and group_by in plot_df.columns and group_by != col:
+            groups = plot_df[group_by].dropna().unique()
+            colors = px.colors.qualitative.Plotly
+            for i, group in enumerate(groups):
+                group_data = plot_df[plot_df[group_by] == group][col].dropna()
+                if len(group_data) < 2:
+                    continue
+                fig.add_trace(go.Violin(
+                    x=group_data,
+                    name=str(group),
+                    side='positive',
+                    line_color=colors[i % len(colors)],
+                    fillcolor=colors[i % len(colors)],
+                    opacity=0.5,
+                    meanline_visible=True,
+                    points=False,
+                ))
+            fig.update_layout(title=f"Density: {col} by {group_by}")
+        else:
+            data_values = plot_df[col].dropna()
+            if len(data_values) < 2:
+                return "{}"
+            fig.add_trace(go.Violin(
+                x=data_values,
+                name=col,
+                side='positive',
+                line_color='#636EFA',
+                fillcolor='#636EFA',
+                opacity=0.5,
+                meanline_visible=True,
+                points=False,
+            ))
+            fig.update_layout(title=f"Density: {col}")
+        
+        fig.update_layout(
+            template="plotly_white",
+            margin=dict(l=20, r=20, t=40, b=20),
+            xaxis_title=col,
+            yaxis_title="Density",
+            showlegend=bool(group_by and group_by in plot_df.columns),
+        )
+        fig.update_yaxes(showticklabels=False)
+        return pio.to_json(fig)
+
+class BoxplotStrategy(VisualizerStrategy):
+    def generate_chart_json(self, df: pd.DataFrame, common_config: dict, specific_config: dict) -> str:
+        col = specific_config.get('column')
+        group_by = specific_config.get('group_by')
+        limit = common_config.get('limit', 100)
+        
+        if not col or col not in df.columns:
+            return "{}"
+            
+        plot_df = df.head(int(limit)) if limit else df
+        plot_df = plot_df.copy()
+        plot_df[col] = pd.to_numeric(plot_df[col], errors='coerce')
+        plot_df = plot_df.dropna(subset=[col])
+        
+        if len(plot_df) == 0:
+            return "{}"
+        
+        if group_by and group_by in plot_df.columns and group_by != col:
+            fig = px.box(plot_df, x=group_by, y=col, title=f"Boxplot: {col} by {group_by}",
+                         color=group_by, points="outliers")
+        else:
+            fig = px.box(plot_df, y=col, title=f"Boxplot: {col}", points="outliers")
+        
+        fig.update_layout(template="plotly_white", margin=dict(l=20, r=20, t=40, b=20))
+        return pio.to_json(fig)
+
+class CorrelogramStrategy(VisualizerStrategy):
+    def generate_chart_json(self, df: pd.DataFrame, common_config: dict, specific_config: dict) -> str:
+        selected_cols = specific_config.get('columns')
+        limit = common_config.get('limit', 100)
+        
+        plot_df = df.head(int(limit)) if limit else df
+        
+        # Select numeric columns
+        if selected_cols:
+            valid_cols = [c for c in selected_cols if c in plot_df.columns]
+            if not valid_cols:
+                return "{}"
+            numeric_df = plot_df[valid_cols].apply(pd.to_numeric, errors='coerce')
+        else:
+            numeric_df = plot_df.select_dtypes(include='number')
+        
+        if numeric_df.empty or numeric_df.shape[1] < 2:
+            return "{}"
+        
+        corr_matrix = numeric_df.corr()
+        labels = corr_matrix.columns.tolist()
+        z_values = corr_matrix.values.tolist()
+        
+        # Round annotations for readability
+        annotations_text = [[f"{val:.2f}" for val in row] for row in z_values]
+        
+        fig = go.Figure(data=go.Heatmap(
+            z=z_values,
+            x=labels,
+            y=labels,
+            text=annotations_text,
+            texttemplate="%{text}",
+            textfont={"size": 11},
+            colorscale='RdBu_r',
+            zmin=-1,
+            zmax=1,
+            colorbar=dict(title="Correlation"),
+        ))
+        
+        fig.update_layout(
+            title="Correlogram",
+            template="plotly_white",
+            margin=dict(l=20, r=20, t=40, b=20),
+            xaxis=dict(side='bottom'),
+            yaxis=dict(autorange='reversed'),
+        )
+        return pio.to_json(fig)
+
 def get_visualizer(chart_type: str) -> VisualizerStrategy:
     if chart_type == 'line':
         return LineChartStrategy()
@@ -137,6 +277,12 @@ def get_visualizer(chart_type: str) -> VisualizerStrategy:
         return ScatterChartStrategy()
     elif chart_type == 'histogram':
         return HistogramStrategy()
+    elif chart_type == 'density':
+        return DensityChartStrategy()
+    elif chart_type == 'boxplot':
+        return BoxplotStrategy()
+    elif chart_type == 'correlogram':
+        return CorrelogramStrategy()
     else:
         # Default
         return BarChartStrategy()

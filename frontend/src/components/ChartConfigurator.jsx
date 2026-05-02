@@ -166,6 +166,85 @@ function HistogramConfigurator({ columns, config, setConfig }) {
     );
 }
 
+function DensityConfigurator({ columns, config, setConfig }) {
+    return (
+        <>
+            <ColumnField label="Numeric Column" name="column" columns={columns} specific={config.specific} setConfig={setConfig} />
+            <div className="form-group">
+                <label>Group By (Optional)</label>
+                <select
+                    value={config.specific?.group_by || ''}
+                    onChange={(e) => setConfig(prev => ({ ...prev, specific: { ...prev.specific, group_by: e.target.value || null } }))}
+                >
+                    <option value="">No grouping</option>
+                    {columns.filter(c => c !== config.specific?.column).map(col => <option key={col} value={col}>{col}</option>)}
+                </select>
+            </div>
+        </>
+    );
+}
+
+function BoxplotConfigurator({ columns, config, setConfig }) {
+    return (
+        <>
+            <ColumnField label="Numeric Column" name="column" columns={columns} specific={config.specific} setConfig={setConfig} />
+            <div className="form-group">
+                <label>Group By (Optional)</label>
+                <select
+                    value={config.specific?.group_by || ''}
+                    onChange={(e) => setConfig(prev => ({ ...prev, specific: { ...prev.specific, group_by: e.target.value || null } }))}
+                >
+                    <option value="">No grouping</option>
+                    {columns.filter(c => c !== config.specific?.column).map(col => <option key={col} value={col}>{col}</option>)}
+                </select>
+            </div>
+        </>
+    );
+}
+
+function CorrelogramConfigurator({ columns, config, setConfig }) {
+    const selected = config.specific?.columns || [];
+
+    const toggleColumn = (col) => {
+        setConfig(prev => {
+            const current = prev.specific?.columns || [];
+            const updated = current.includes(col)
+                ? current.filter(c => c !== col)
+                : [...current, col];
+            return { ...prev, specific: { ...prev.specific, columns: updated.length > 0 ? updated : null } };
+        });
+    };
+
+    return (
+        <div className="form-group">
+            <label>Columns (leave empty for all numeric)</label>
+            <div style={{ maxHeight: '250px', overflowY: 'auto', borderRadius: '6px', padding: '10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {columns.map(col => (
+                    <label
+                        key={col}
+                        style={{
+                            display: 'grid',
+                            gridTemplateColumns: '18px 1fr',
+                            alignItems: 'center',
+                            gap: '6px',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                        }}
+                    >
+                        <input
+                            type="checkbox"
+                            checked={selected.includes(col)}
+                            onChange={() => toggleColumn(col)}
+                            style={{ margin: 0 }}
+                        />
+                        {col}
+                    </label>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 // --- Dynamic Registry ---
 const CHART_REGISTRY = {
     bar: { name: 'Bar Chart', component: BarConfigurator },
@@ -173,6 +252,9 @@ const CHART_REGISTRY = {
     pie: { name: 'Pie Chart', component: PieConfigurator },
     scatter: { name: 'Scatter Plot', component: ScatterConfigurator },
     histogram: { name: 'Histogram', component: HistogramConfigurator },
+    density: { name: 'Density Curve', component: DensityConfigurator },
+    boxplot: { name: 'Boxplot', component: BoxplotConfigurator },
+    correlogram: { name: 'Correlogram', component: CorrelogramConfigurator },
 };
 
 export default function ChartConfigurator({ columns, config, setConfig }) {
@@ -189,6 +271,10 @@ export default function ChartConfigurator({ columns, config, setConfig }) {
             newSpecific = { x_column: defaultCol1, y_column: defaultCol2 };
         } else if (newType === 'histogram') {
             newSpecific = { column: defaultCol1 };
+        } else if (newType === 'density' || newType === 'boxplot') {
+            newSpecific = { column: defaultCol1, group_by: null };
+        } else if (newType === 'correlogram') {
+            newSpecific = { columns: null };
         } else {
             newSpecific = {
                 dimension: defaultCol1,

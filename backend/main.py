@@ -90,6 +90,17 @@ class ScatterSpecific(BaseModel):
 class HistogramSpecific(BaseModel):
     column: str
 
+class DensitySpecific(BaseModel):
+    column: str
+    group_by: Optional[str] = None
+
+class BoxplotSpecific(BaseModel):
+    column: str
+    group_by: Optional[str] = None
+
+class CorrelogramSpecific(BaseModel):
+    columns: Optional[List[str]] = None
+
 class BaseChartRequest(BaseModel):
     dataset_id: str
     common: CommonConfig
@@ -114,7 +125,19 @@ class HistogramRequest(BaseChartRequest):
     chart_type: Literal["histogram"]
     specific: HistogramSpecific
 
-ChartRequest = Union[BarRequest, PieRequest, LineRequest, ScatterRequest, HistogramRequest]
+class DensityRequest(BaseChartRequest):
+    chart_type: Literal["density"]
+    specific: DensitySpecific
+
+class BoxplotRequest(BaseChartRequest):
+    chart_type: Literal["boxplot"]
+    specific: BoxplotSpecific
+
+class CorrelogramRequest(BaseChartRequest):
+    chart_type: Literal["correlogram"]
+    specific: CorrelogramSpecific
+
+ChartRequest = Union[BarRequest, PieRequest, LineRequest, ScatterRequest, HistogramRequest, DensityRequest, BoxplotRequest, CorrelogramRequest]
     
 @app.post("/api/chart")
 async def generate_chart(request: ChartRequest):
