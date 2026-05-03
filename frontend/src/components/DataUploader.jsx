@@ -28,12 +28,12 @@ export default function DataUploader({ file, setFile }) {
                 {file ? (
                     <p style={{ margin: 0, fontWeight: 500, color: '#111' }}>{file.name}</p>
                 ) : (
-                    <p style={{ margin: 0 }}>Click or drag file to upload (.csv, .xlsx)</p>
+                    <p style={{ margin: 0 }}>Click or drag file to upload (.csv, .xlsx, .geojson)</p>
                 )}
                 <input
                     id="file-upload"
                     type="file"
-                    accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                    accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, .geojson, application/geo+json"
                     style={{ display: 'none' }}
                     onChange={handleChange}
                 />

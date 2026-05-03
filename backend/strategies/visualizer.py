@@ -272,33 +272,62 @@ class MapChartStrategy(VisualizerStrategy):
     def generate_chart_json(self, df: pd.DataFrame, common_config: dict, specific_config: dict) -> str:
         lat_col = specific_config.get('latitude_column')
         lon_col = specific_config.get('longitude_column')
+        geojson_col = specific_config.get('geojson_column')
         tooltip_col = specific_config.get('tooltip_column')
         limit = common_config.get('limit', 100)
         
-        if not lat_col or not lon_col or lat_col not in df.columns or lon_col not in df.columns:
-            return "{}"
-            
         plot_df = df.head(int(limit)) if limit else df
-        
         plot_df = plot_df.copy()
-        plot_df[lat_col] = pd.to_numeric(plot_df[lat_col], errors='coerce')
-        plot_df[lon_col] = pd.to_numeric(plot_df[lon_col], errors='coerce')
-        plot_df = plot_df.dropna(subset=[lat_col, lon_col])
-        
-        if len(plot_df) == 0:
+
+        center_lat, center_lon = 0, 0
+        m = None
+
+        if geojson_col and geojson_col in plot_df.columns:
+            # We have GeoJSON strings
+            # Compute center by finding first valid geometry
+            for val in plot_df[geojson_col].dropna():
+                try:
+                    geo = json.loads(val) if isinstance(val, str) else val
+                    import re
+                    coords = str(geo.get('coordinates', ''))
+                    nums = re.findall(r'-?\d+\.\d+|-?\d+', coords)
+                    if len(nums) >= 2:
+                        center_lon = float(nums[0])
+                        center_lat = float(nums[1])
+                        break
+                except Exception:
+                    pass
+            
+            m = folium.Map(location=[center_lat, center_lon], zoom_start=4)
+            for _, row in plot_df.iterrows():
+                val = row[geojson_col]
+                if pd.isna(val): continue
+                try:
+                    geo = json.loads(val) if isinstance(val, str) else val
+                    tooltip = str(row[tooltip_col]) if tooltip_col and tooltip_col in df.columns and pd.notna(row[tooltip_col]) else None
+                    folium.GeoJson(geo, tooltip=tooltip).add_to(m)
+                except Exception:
+                    pass
+
+        elif lat_col and lon_col and lat_col in plot_df.columns and lon_col in plot_df.columns:
+            plot_df[lat_col] = pd.to_numeric(plot_df[lat_col], errors='coerce')
+            plot_df[lon_col] = pd.to_numeric(plot_df[lon_col], errors='coerce')
+            plot_df = plot_df.dropna(subset=[lat_col, lon_col])
+            
+            if len(plot_df) > 0:
+                center_lat = plot_df[lat_col].mean()
+                center_lon = plot_df[lon_col].mean()
+
+            m = folium.Map(location=[center_lat, center_lon], zoom_start=4)
+
+            for _, row in plot_df.iterrows():
+                tooltip = str(row[tooltip_col]) if tooltip_col and tooltip_col in df.columns and pd.notna(row[tooltip_col]) else None
+                folium.Marker(
+                    location=[row[lat_col], row[lon_col]],
+                    tooltip=tooltip
+                ).add_to(m)
+        else:
             return "{}"
-
-        center_lat = plot_df[lat_col].mean()
-        center_lon = plot_df[lon_col].mean()
-
-        m = folium.Map(location=[center_lat, center_lon], zoom_start=4)
-
-        for _, row in plot_df.iterrows():
-            tooltip = str(row[tooltip_col]) if tooltip_col and tooltip_col in df.columns and pd.notna(row[tooltip_col]) else None
-            folium.Marker(
-                location=[row[lat_col], row[lon_col]],
-                tooltip=tooltip
-            ).add_to(m)
         
         map_html = m._repr_html_()
         

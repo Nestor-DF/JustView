@@ -248,8 +248,17 @@ function CorrelogramConfigurator({ columns, config, setConfig }) {
 function MapConfigurator({ columns, config, setConfig }) {
     return (
         <>
-            <ColumnField label="Latitude Column" name="latitude_column" columns={columns} specific={config.specific} setConfig={setConfig} />
-            <ColumnField label="Longitude Column" name="longitude_column" columns={columns} specific={config.specific} setConfig={setConfig} />
+            <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f9f9f9', borderRadius: '4px', border: '1px solid #eee' }}>
+                <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#555' }}>Option 1: Point Coordinates</h4>
+                <ColumnField label="Latitude Column" name="latitude_column" columns={columns} specific={config.specific} setConfig={setConfig} />
+                <ColumnField label="Longitude Column" name="longitude_column" columns={columns} specific={config.specific} setConfig={setConfig} />
+            </div>
+            
+            <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f9f9f9', borderRadius: '4px', border: '1px solid #eee' }}>
+                <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#555' }}>Option 2: GeoJSON Shape</h4>
+                <ColumnField label="GeoJSON Column" name="geojson_column" columns={columns} specific={config.specific} setConfig={setConfig} />
+            </div>
+
             <ColumnField label="Tooltip Column (Optional)" name="tooltip_column" columns={columns} specific={config.specific} setConfig={setConfig} />
         </>
     );
@@ -287,7 +296,8 @@ export default function ChartConfigurator({ columns, config, setConfig }) {
         } else if (newType === 'correlogram') {
             newSpecific = { columns: null };
         } else if (newType === 'map') {
-            newSpecific = { latitude_column: defaultCol1, longitude_column: defaultCol2, tooltip_column: null };
+            const geomCol = columns.includes('geometry') ? 'geometry' : null;
+            newSpecific = { latitude_column: defaultCol1, longitude_column: defaultCol2, geojson_column: geomCol, tooltip_column: null };
         } else {
             newSpecific = {
                 dimension: defaultCol1,

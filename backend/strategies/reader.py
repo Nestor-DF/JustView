@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import pandas as pd
 import io
+import json
 
 class DataReaderStrategy(ABC):
     @abstractmethod
@@ -30,10 +31,23 @@ class ReaderContext:
     def execute_read(self, file_content: bytes, filename: str) -> pd.DataFrame:
         return self._strategy.read(file_content, filename)
 
+class GeoJSONReaderStrategy(DataReaderStrategy):
+    def read(self, file_content: bytes, filename: str) -> pd.DataFrame:
+        data = json.loads(file_content)
+        rows = []
+        for feature in data.get("features", []):
+            row = feature.get("properties", {}).copy()
+            # Guardamos la geometria como string JSON
+            row["geometry"] = json.dumps(feature.get("geometry", {}))
+            rows.append(row)
+        return pd.DataFrame(rows)
+
 def get_reader_for_file(filename: str) -> DataReaderStrategy:
     if filename.endswith('.csv'):
         return CSVReaderStrategy()
     elif filename.endswith(('.xls', '.xlsx')):
         return ExcelReaderStrategy()
+    elif filename.endswith('.geojson'):
+        return GeoJSONReaderStrategy()
     else:
         raise ValueError(f"Format not supported for file: {filename}")

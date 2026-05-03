@@ -102,8 +102,9 @@ class CorrelogramSpecific(BaseModel):
     columns: Optional[List[str]] = None
 
 class MapSpecific(BaseModel):
-    latitude_column: str
-    longitude_column: str
+    latitude_column: Optional[str] = None
+    longitude_column: Optional[str] = None
+    geojson_column: Optional[str] = None
     tooltip_column: Optional[str] = None
 
 class BaseChartRequest(BaseModel):
