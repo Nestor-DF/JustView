@@ -101,6 +101,11 @@ class BoxplotSpecific(BaseModel):
 class CorrelogramSpecific(BaseModel):
     columns: Optional[List[str]] = None
 
+class MapSpecific(BaseModel):
+    latitude_column: str
+    longitude_column: str
+    tooltip_column: Optional[str] = None
+
 class BaseChartRequest(BaseModel):
     dataset_id: str
     common: CommonConfig
@@ -137,7 +142,11 @@ class CorrelogramRequest(BaseChartRequest):
     chart_type: Literal["correlogram"]
     specific: CorrelogramSpecific
 
-ChartRequest = Union[BarRequest, PieRequest, LineRequest, ScatterRequest, HistogramRequest, DensityRequest, BoxplotRequest, CorrelogramRequest]
+class MapRequest(BaseChartRequest):
+    chart_type: Literal["map"]
+    specific: MapSpecific
+
+ChartRequest = Union[BarRequest, PieRequest, LineRequest, ScatterRequest, HistogramRequest, DensityRequest, BoxplotRequest, CorrelogramRequest, MapRequest]
     
 @app.post("/api/chart")
 async def generate_chart(request: ChartRequest):

@@ -245,6 +245,16 @@ function CorrelogramConfigurator({ columns, config, setConfig }) {
     );
 }
 
+function MapConfigurator({ columns, config, setConfig }) {
+    return (
+        <>
+            <ColumnField label="Latitude Column" name="latitude_column" columns={columns} specific={config.specific} setConfig={setConfig} />
+            <ColumnField label="Longitude Column" name="longitude_column" columns={columns} specific={config.specific} setConfig={setConfig} />
+            <ColumnField label="Tooltip Column (Optional)" name="tooltip_column" columns={columns} specific={config.specific} setConfig={setConfig} />
+        </>
+    );
+}
+
 // --- Dynamic Registry ---
 const CHART_REGISTRY = {
     bar: { name: 'Bar Chart', component: BarConfigurator },
@@ -255,6 +265,7 @@ const CHART_REGISTRY = {
     density: { name: 'Density Curve', component: DensityConfigurator },
     boxplot: { name: 'Boxplot', component: BoxplotConfigurator },
     correlogram: { name: 'Correlogram', component: CorrelogramConfigurator },
+    map: { name: 'Geolocated Map', component: MapConfigurator },
 };
 
 export default function ChartConfigurator({ columns, config, setConfig }) {
@@ -275,6 +286,8 @@ export default function ChartConfigurator({ columns, config, setConfig }) {
             newSpecific = { column: defaultCol1, group_by: null };
         } else if (newType === 'correlogram') {
             newSpecific = { columns: null };
+        } else if (newType === 'map') {
+            newSpecific = { latitude_column: defaultCol1, longitude_column: defaultCol2, tooltip_column: null };
         } else {
             newSpecific = {
                 dimension: defaultCol1,

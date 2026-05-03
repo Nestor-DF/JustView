@@ -75,8 +75,14 @@ export default function ChartViewer({ config }) {
     }
 
     return (
-        <div className="chart-container-wrapper" style={{ padding: 0, overflow: 'hidden' }}>
-            {chartData && (
+        <div className="chart-container-wrapper" style={{ padding: 0, overflow: 'hidden', width: '100%', height: '100%' }}>
+            {chartData && chartData.custom_chart_type === 'folium_map' ? (
+                <iframe 
+                    srcDoc={chartData.html} 
+                    style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+                    title="Map View"
+                />
+            ) : chartData && (
                 <Plot
                     data={chartData.data}
                     layout={{

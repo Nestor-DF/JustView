@@ -4,6 +4,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 import plotly.io as pio
 import numpy as np
+import folium
+import json
 
 class VisualizerStrategy(ABC):
     @abstractmethod
@@ -266,6 +268,45 @@ class CorrelogramStrategy(VisualizerStrategy):
         )
         return pio.to_json(fig)
 
+class MapChartStrategy(VisualizerStrategy):
+    def generate_chart_json(self, df: pd.DataFrame, common_config: dict, specific_config: dict) -> str:
+        lat_col = specific_config.get('latitude_column')
+        lon_col = specific_config.get('longitude_column')
+        tooltip_col = specific_config.get('tooltip_column')
+        limit = common_config.get('limit', 100)
+        
+        if not lat_col or not lon_col or lat_col not in df.columns or lon_col not in df.columns:
+            return "{}"
+            
+        plot_df = df.head(int(limit)) if limit else df
+        
+        plot_df = plot_df.copy()
+        plot_df[lat_col] = pd.to_numeric(plot_df[lat_col], errors='coerce')
+        plot_df[lon_col] = pd.to_numeric(plot_df[lon_col], errors='coerce')
+        plot_df = plot_df.dropna(subset=[lat_col, lon_col])
+        
+        if len(plot_df) == 0:
+            return "{}"
+
+        center_lat = plot_df[lat_col].mean()
+        center_lon = plot_df[lon_col].mean()
+
+        m = folium.Map(location=[center_lat, center_lon], zoom_start=4)
+
+        for _, row in plot_df.iterrows():
+            tooltip = str(row[tooltip_col]) if tooltip_col and tooltip_col in df.columns and pd.notna(row[tooltip_col]) else None
+            folium.Marker(
+                location=[row[lat_col], row[lon_col]],
+                tooltip=tooltip
+            ).add_to(m)
+        
+        map_html = m._repr_html_()
+        
+        return json.dumps({
+            "custom_chart_type": "folium_map",
+            "html": map_html
+        })
+
 def get_visualizer(chart_type: str) -> VisualizerStrategy:
     if chart_type == 'line':
         return LineChartStrategy()
@@ -283,6 +324,8 @@ def get_visualizer(chart_type: str) -> VisualizerStrategy:
         return BoxplotStrategy()
     elif chart_type == 'correlogram':
         return CorrelogramStrategy()
+    elif chart_type == 'map':
+        return MapChartStrategy()
     else:
         # Default
         return BarChartStrategy()

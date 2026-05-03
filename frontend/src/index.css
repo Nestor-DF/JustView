@@ -205,7 +205,7 @@ input:focus, select:focus {
   gap: 20px;
   width: 100%;
   height: max-content;
-  min-height: 100%;
+  /* min-height: 100%; */
 }
 
 .chart-wrapper {
