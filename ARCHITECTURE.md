@@ -1,7 +1,7 @@
 # JustView - Reporte de Arquitectura y Herramienta
 
 ## 1. Descripción de la Herramienta
-JustView es una aplicación web minimalista y dinámica diseñada para la carga, procesamiento y visualización de datos de manera interactiva. Permite a los usuarios importar múltiples conjuntos de datos (datasets) en formato CSV o Excel, aplicar técnicas de limpieza de datos en el proceso (como manejo de valores nulos, duplicados y valores atípicos), y crear configuraciones de gráficos interactivos (Barras, Líneas, Pastel, Dispersión e Histogramas). Su interfaz de usuario actúa como un tablero (dashboard) que permite analizar la información proveniente de múltiples fuentes y configurar diferentes tipos de visualizaciones simultáneamente.
+JustView es una aplicación web minimalista y dinámica diseñada para la carga, procesamiento, visualización y análisis de datos de manera interactiva. Permite a los usuarios importar múltiples conjuntos de datos (datasets) en formato CSV o Excel, aplicar técnicas de limpieza de datos en el proceso (como manejo de valores nulos, duplicados y valores atípicos), crear configuraciones de gráficos interactivos (Barras, Líneas, Pastel, Dispersión, Histogramas, Densidad, Boxplot, Correlogramas y Mapas), y ejecutar métodos de Machine Learning supervisado (Regresión Lineal y Logística). Su interfaz de usuario actúa como un tablero (dashboard) que permite analizar la información proveniente de múltiples fuentes, configurar diferentes tipos de visualizaciones y ejecutar análisis ML simultáneamente.
 
 ## 2. Tecnologías Empleadas
 
@@ -11,6 +11,7 @@ JustView es una aplicación web minimalista y dinámica diseñada para la carga,
 * **Servidor ASGI:** Uvicorn.
 * **Procesamiento de Datos:** Pandas (utilizado extensivamente para lectura, limpieza y transformación de los DataFrames).
 * **Visualización (Generación):** Plotly Express / Plotly.io (empleado para agrupar los datos y generar las definiciones JSON interactivas de los gráficos).
+* **Visualización Mapas (Generación):** Folium.
 * **Validación de Datos:** Pydantic (para validación estricta y control de esquemas fuertemente tipados de cada configuración gráfica según su tipo).
 
 ### Frontend
@@ -35,6 +36,7 @@ El backend está estructurado en base a un alto grado de modularización, utiliz
 * **Estrategias de Lectura (`DataReaderStrategy`):** Se delega la responsabilidad de lectura de los bytes binarios y su conversión a DataFrame según la extensión (`CSVReaderStrategy`, `ExcelReaderStrategy`).
 * **Estrategias de Procesamiento (`DataProcessorStrategy`):** Diferentes métodos de limpieza y tratamiento son encapsulados en sus propias clases, que luego son iteradas por un `ProcessorContext` (`NullHandlerStrategy`, `DuplicateHandlerStrategy`, `OutlierHandlerStrategy`).
 * **Estrategias de Visualización (`VisualizerStrategy`):** Separa la lógica de preparación, validación, agrupación y visualización final para cada familia de gráficos (`BarChartStrategy`, `LineChartStrategy`, `PieChartStrategy`, etc.).
+* **Estrategias de Machine Learning (`MLStrategy`):** Encapsulan métodos de aprendizaje supervisado, cada uno responsable de entrenar un modelo, evaluar sus métricas y devolver resultados estructurados. Implementaciones: `LinearRegressionStrategy`, `LogisticRegressionStrategy`.
 
 ---
 
@@ -126,7 +128,24 @@ classDiagram
     VisualizerStrategy <|.. ScatterChartStrategy
     VisualizerStrategy <|.. HistogramStrategy
     
+    %% Estrategias de Machine Learning
+    class MLStrategy {
+        <<interface>>
+        +train_and_evaluate(df, config) dict
+        #_prepare_data(df, config) tuple
+    }
+    class LinearRegressionStrategy {
+        +train_and_evaluate(df, config) dict
+    }
+    class LogisticRegressionStrategy {
+        +train_and_evaluate(df, config) dict
+    }
+
+    MLStrategy <|.. LinearRegressionStrategy
+    MLStrategy <|.. LogisticRegressionStrategy
+
     FastAPIApp --> ReaderContext : Utiliza
     FastAPIApp --> ProcessorContext : Utiliza
     FastAPIApp --> VisualizerStrategy : Obtiene a través de Factory
+    FastAPIApp --> MLStrategy : Obtiene a través de Factory
 ```

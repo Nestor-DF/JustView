@@ -336,3 +336,164 @@ input:focus, select:focus {
 .chart-wrapper.maximized .maximize-btn {
   opacity: 1;
 }
+
+/* ========== ML Results Panel ========== */
+
+.ml-results-panel {
+  width: 100%;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ml-results-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #111;
+}
+
+.ml-results-header h3 {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.ml-results-subtitle {
+  font-size: 13px;
+  color: #666;
+}
+
+.ml-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ml-section h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ml-metrics-grid {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ml-metric-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 18px;
+  border-radius: var(--border-radius);
+  border: 1px solid #e5e5e5;
+  background: #fff;
+  min-width: 90px;
+  transition: box-shadow var(--transition-speed);
+}
+
+.ml-metric-badge:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.ml-metric-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.ml-metric-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111;
+  font-variant-numeric: tabular-nums;
+}
+
+.ml-sample-info {
+  font-size: 11px;
+  color: #999;
+}
+
+/* ML Tables */
+
+.ml-table-wrapper {
+  overflow-x: auto;
+  border-radius: var(--border-radius);
+  border: 1px solid #e5e5e5;
+}
+
+.ml-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.ml-table th {
+  background: #fafafa;
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #555;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.ml-table td {
+  padding: 7px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  color: #333;
+  font-variant-numeric: tabular-nums;
+}
+
+.ml-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.ml-table tbody tr:hover {
+  background: #fafafa;
+}
+
+.ml-intercept-row td {
+  background: #f7f7f7;
+  color: #888;
+}
+
+.ml-coef-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ml-coef-value.positive {
+  color: #16a34a;
+}
+
+.ml-coef-value.negative {
+  color: #dc2626;
+}
+
+/* Confusion Matrix */
+
+.ml-confusion-matrix th.ml-cm-header,
+.ml-confusion-matrix td.ml-cm-row-header {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.ml-cm-cell {
+  text-align: center;
+  font-weight: 500;
+  font-size: 14px;
+  min-width: 50px;
+  transition: background var(--transition-speed);
+}

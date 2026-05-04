@@ -8,6 +8,7 @@ import uuid
 from strategies.reader import get_reader_for_file, ReaderContext
 from strategies.processor import apply_processing
 from strategies.visualizer import get_visualizer
+from strategies.ml import get_ml_strategy
 
 app = FastAPI()
 
@@ -165,6 +166,49 @@ async def generate_chart(request: ChartRequest):
         return json.loads(chart_json)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Visualizer Error: {str(e)}")
+
+# --- ML (Machine Learning) Models ---
+
+class LinearRegressionSpecific(BaseModel):
+    features: List[str]
+    target: str
+    test_size: Optional[float] = 0.2
+
+class LogisticRegressionSpecific(BaseModel):
+    features: List[str]
+    target: str
+    test_size: Optional[float] = 0.2
+
+class BaseMLRequest(BaseModel):
+    dataset_id: str
+
+class LinearRegressionRequest(BaseMLRequest):
+    ml_method: Literal["linear_regression"]
+    specific: LinearRegressionSpecific
+
+class LogisticRegressionRequest(BaseMLRequest):
+    ml_method: Literal["logistic_regression"]
+    specific: LogisticRegressionSpecific
+
+MLRequest = Union[LinearRegressionRequest, LogisticRegressionRequest]
+
+@app.post("/api/ml")
+async def run_ml(request: MLRequest):
+    dataset_id = request.dataset_id
+    if dataset_id not in DATASETS_STORE:
+        raise HTTPException(status_code=404, detail="Dataset not found or session expired.")
+    
+    df = DATASETS_STORE[dataset_id]
+    
+    # 4. Strategy: Machine Learning
+    try:
+        strategy = get_ml_strategy(request.ml_method)
+        results = strategy.train_and_evaluate(df, request.specific.model_dump())
+        return results
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"ML Error: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"ML error: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
