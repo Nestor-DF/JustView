@@ -132,6 +132,11 @@ class LinearRegressionStrategy(MLStrategy):
                 "mae": round(float(mean_absolute_error(y_test, y_pred_test)), 6),
             },
             "sample_predictions": sample_predictions,
+            # Internal objects for persistence (stripped before JSON response)
+            "_model_object": model,
+            "_features": features,
+            "_target": target,
+            "_label_encoder": None,
         }
 
 
@@ -205,6 +210,11 @@ class LogisticRegressionStrategy(MLStrategy):
             },
             "classification_report": report_table,
             "confusion_matrix": confusion,
+            # Internal objects for persistence (stripped before JSON response)
+            "_model_object": model,
+            "_features": features,
+            "_target": target,
+            "_label_encoder": le,
         }
 
 

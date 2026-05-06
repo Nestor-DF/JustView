@@ -6,6 +6,7 @@ et_xmlfile==2.0.0
 fastapi==0.136.0
 folium
 h11==0.16.0
+joblib
 idna==3.11
 narwhals==2.19.0
 numpy==2.4.4

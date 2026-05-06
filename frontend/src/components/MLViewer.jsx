@@ -233,6 +233,115 @@ function LogisticRegressionResults({ data }) {
     );
 }
 
+// --- Prediction Playground Component ---
+
+function PredictionPlayground({ modelId, features, mlMethod }) {
+    const [values, setValues] = useState(() => {
+        const init = {};
+        features.forEach(f => { init[f] = ''; });
+        return init;
+    });
+    const [prediction, setPrediction] = useState(null);
+    const [predLoading, setPredLoading] = useState(false);
+    const [predError, setPredError] = useState('');
+
+    const handleValueChange = (feature, val) => {
+        setValues(prev => ({ ...prev, [feature]: val }));
+    };
+
+    const allFilled = features.every(f => values[f] !== '' && !isNaN(parseFloat(values[f])));
+
+    const handlePredict = async () => {
+        if (!allFilled) return;
+        setPredLoading(true);
+        setPredError('');
+        setPrediction(null);
+
+        try {
+            const numericValues = {};
+            features.forEach(f => { numericValues[f] = parseFloat(values[f]); });
+
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/ml/predict`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model_id: modelId, values: numericValues }),
+            });
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(typeof data.detail === 'string' ? data.detail : 'Prediction failed.');
+            }
+
+            setPrediction(data);
+        } catch (err) {
+            setPredError(err.message);
+        } finally {
+            setPredLoading(false);
+        }
+    };
+
+    const handleDownload = () => {
+        const url = `${import.meta.env.VITE_API_URL}/ml/download/${modelId}`;
+        window.open(url, '_blank');
+    };
+
+    return (
+        <div className="ml-playground">
+            <div className="ml-playground-header">
+                <h4>Prediction Playground</h4>
+                <span className="ml-playground-hint">Enter values for each feature and click Predict</span>
+            </div>
+
+            <div className="ml-playground-inputs">
+                {features.map(f => (
+                    <div key={f} className="ml-playground-field">
+                        <label>{f}</label>
+                        <input
+                            type="number"
+                            step="any"
+                            placeholder="0.0"
+                            value={values[f]}
+                            onChange={(e) => handleValueChange(f, e.target.value)}
+                        />
+                    </div>
+                ))}
+            </div>
+
+            <div className="ml-playground-actions">
+                <button
+                    onClick={handlePredict}
+                    disabled={!allFilled || predLoading}
+                    className="ml-predict-btn"
+                >
+                    {predLoading ? 'Predicting…' : '⚡ Predict'}
+                </button>
+                <button
+                    onClick={handleDownload}
+                    className="ml-download-btn secondary"
+                    title="Download trained model as .joblib file"
+                >
+                    📥 Download Model
+                </button>
+            </div>
+
+            {predError && (
+                <div className="ml-playground-error">{predError}</div>
+            )}
+
+            {prediction && (
+                <div className="ml-playground-result">
+                    <span className="ml-playground-result-label">
+                        {prediction.prediction_type === 'class' ? 'Predicted Class' : 'Predicted Value'}
+                    </span>
+                    <span className="ml-playground-result-value">
+                        {prediction.prediction}
+                    </span>
+                </div>
+            )}
+        </div>
+    );
+}
+
 // --- Result renderers by method ---
 const ML_RENDERERS = {
     linear_regression: LinearRegressionResults,
@@ -330,11 +439,24 @@ export default function MLViewer({ config }) {
 
     return (
         <div className="chart-container-wrapper" style={{ padding: 0, overflow: 'auto', width: '100%', height: '100%', alignItems: 'flex-start', justifyContent: 'flex-start' }}>
-            {Renderer ? (
-                <Renderer data={results} />
-            ) : (
-                <div style={{ padding: '20px', color: '#888' }}>Unknown ML method result.</div>
-            )}
+            <div style={{ width: '100%' }}>
+                {Renderer ? (
+                    <Renderer data={results} />
+                ) : (
+                    <div style={{ padding: '20px', color: '#888' }}>Unknown ML method result.</div>
+                )}
+
+                {/* Prediction Playground — shown after model is trained */}
+                {results && results.model_id && results.features && (
+                    <div style={{ padding: '0 24px 24px 24px' }}>
+                        <PredictionPlayground
+                            modelId={results.model_id}
+                            features={results.features}
+                            mlMethod={results.ml_method}
+                        />
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

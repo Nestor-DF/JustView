@@ -1,6 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Optional
+from typing import List, Optional, Dict
 import json
 import uuid
 
@@ -23,6 +23,9 @@ app.add_middleware(
 
 # Global dict to hold datasets in memory for simple implementation
 DATASETS_STORE = {}
+
+# Global dict to hold trained ML models in memory
+MODELS_STORE = {}
 
 @app.post("/api/upload")
 async def upload_file(
@@ -204,11 +207,96 @@ async def run_ml(request: MLRequest):
     try:
         strategy = get_ml_strategy(request.ml_method)
         results = strategy.train_and_evaluate(df, request.specific.model_dump())
+
+        # Extract and store internal model objects
+        model_obj = results.pop("_model_object", None)
+        features = results.pop("_features", None)
+        target = results.pop("_target", None)
+        label_encoder = results.pop("_label_encoder", None)
+
+        model_id = str(uuid.uuid4())
+        MODELS_STORE[model_id] = {
+            "model": model_obj,
+            "features": features,
+            "target": target,
+            "ml_method": request.ml_method,
+            "label_encoder": label_encoder,
+        }
+
+        results["model_id"] = model_id
         return results
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"ML Error: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"ML error: {str(e)}")
+
+
+# --- ML Predict & Download ---
+
+class PredictRequest(BaseModel):
+    model_id: str
+    values: Dict[str, float]
+
+@app.post("/api/ml/predict")
+async def predict(request: PredictRequest):
+    if request.model_id not in MODELS_STORE:
+        raise HTTPException(status_code=404, detail="Model not found or session expired.")
+    
+    entry = MODELS_STORE[request.model_id]
+    model = entry["model"]
+    features = entry["features"]
+    label_encoder = entry.get("label_encoder")
+    ml_method = entry["ml_method"]
+
+    # Validate that all features are provided
+    missing = [f for f in features if f not in request.values]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Missing feature values: {missing}")
+
+    try:
+        import numpy as np
+        X = np.array([[request.values[f] for f in features]])
+        raw_pred = model.predict(X)
+
+        if ml_method == "logistic_regression" and label_encoder is not None:
+            predicted_label = label_encoder.inverse_transform(raw_pred)
+            return {
+                "prediction": str(predicted_label[0]),
+                "prediction_type": "class",
+            }
+        else:
+            return {
+                "prediction": round(float(raw_pred[0]), 6),
+                "prediction_type": "value",
+            }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Prediction error: {str(e)}")
+
+
+from fastapi.responses import StreamingResponse
+import io
+
+@app.get("/api/ml/download/{model_id}")
+async def download_model(model_id: str):
+    if model_id not in MODELS_STORE:
+        raise HTTPException(status_code=404, detail="Model not found or session expired.")
+    
+    entry = MODELS_STORE[model_id]
+
+    try:
+        import joblib
+        buffer = io.BytesIO()
+        joblib.dump(entry["model"], buffer)
+        buffer.seek(0)
+
+        filename = f"{entry['ml_method']}_{entry['target']}.joblib"
+        return StreamingResponse(
+            buffer,
+            media_type="application/octet-stream",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Download error: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
